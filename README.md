@@ -8,6 +8,18 @@ PaneLock is a Windows 11 window manager that divides each display into custom pa
 
 [Download the latest release](https://github.com/helpagency/PaneLock/releases/latest) · [Report a bug](https://github.com/helpagency/PaneLock/issues) · [MIT License](LICENSE)
 
+## Screenshots
+
+Example configurations shown in PaneLock 0.6.1.
+
+**Ultrawide: a 1920-pixel center pane with equal 1600-pixel side panes.**
+
+![Three-pane ultrawide layout with exact center width](screenshot-ultrawide.png)
+
+**Multi-monitor: select another display and give it its own two-pane layout.**
+
+![Independent two-pane layout on a companion display](screenshot-multi-monitor.png)
+
 ## Built for wide workspaces
 
 - **Ultrawide and super-ultrawide monitors:** use a large center pane for a browser or video while keeping other apps visible on the sides.
