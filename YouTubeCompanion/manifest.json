@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "PaneLock - YouTube Window Fullscreen",
+  "version": "0.3.1",
+  "description": "YouTube fullscreen in a PaneLock pane, with automatic Chrome toolbar hiding in PaneLock 0.6.",
+  "minimum_chrome_version": "111",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://m.youtube.com/*"
+      ],
+      "js": [
+        "window-fullscreen.js"
+      ],
+      "css": [
+        "window-fullscreen.css"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}

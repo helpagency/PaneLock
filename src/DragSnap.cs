@@ -1,0 +1,29 @@
+using System;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+sealed class ZoneOverlay:Form {
+ public Engine Engine;public MonitorInfo Monitor;public int Pane;
+ public ZoneOverlay(){FormBorderStyle=FormBorderStyle.None;ShowInTaskbar=false;TopMost=true;BackColor=Color.Magenta;TransparencyKey=Color.Magenta;Opacity=.60;DoubleBuffered=true;}
+ protected override bool ShowWithoutActivation{get{return true;}}
+ protected override CreateParams CreateParams{get{var p=base.CreateParams;p.ExStyle|=0x080000A0;return p;}}
+ protected override void WndProc(ref Message m){if(m.Msg==0x84){m.Result=new IntPtr(-1);return;}base.WndProc(ref m);}
+ public void Display(Engine engine,MonitorInfo monitor,int pane){Engine=engine;Monitor=monitor;Pane=pane;var l=engine.LayoutFor(monitor);Bounds=l.WorkArea?monitor.Work:monitor.Bounds;if(!Visible)Show();Invalidate();}
+ protected override void OnPaint(PaintEventArgs args){base.OnPaint(args);if(Engine==null||Monitor==null)return;var l=Engine.LayoutFor(Monitor);var area=new Rectangle(0,0,Width,Height);for(int i=0;i<l.Count;i++){var r=l.Zone(area,i);r.Inflate(-6,-6);using(var p=new Pen(Color.FromArgb(80,155,255),4))args.Graphics.DrawRectangle(p,r);if(i==Pane)using(var fill=new SolidBrush(Color.FromArgb(39,102,235)))args.Graphics.FillRectangle(fill,r);using(var font=new Font("Segoe UI",36,FontStyle.Bold))TextRenderer.DrawText(args.Graphics,(i+1).ToString(),font,r,Color.White,TextFormatFlags.HorizontalCenter|TextFormatFlags.VerticalCenter);}}
+}
+sealed class DragSnap:IDisposable {
+ readonly Engine engine;readonly Control owner;readonly Win.EventProc callback;readonly Win.HookProc mouseCallback;IntPtr mouseHook,pressedWindow;bool captionPressed,releasedShift;IntPtr releasedWindow;Win.Point releasedPoint;DateTime pressedAt,releasedAt;readonly Timer timer=new Timer();readonly ZoneOverlay overlay=new ZoneOverlay();IntPtr hook,dragged;bool allowSelf,disposed;DateTime began;
+ public bool ManualTests,TestShift;public int Starts,Drops,Events,LastHit;bool ShiftDown(){return (Program.TestMode&&TestShift)||(Win.GetAsyncKeyState(0x10)&0x8000)!=0;}public bool Installed{get{return hook!=IntPtr.Zero&&mouseHook!=IntPtr.Zero;}}public bool OverlayVisible{get{return overlay.Visible;}}
+ public DragSnap(Engine e,Control control){engine=e;owner=control;callback=OnEvent;mouseCallback=OnMouse;mouseHook=Win.SetWindowsHookEx(14,mouseCallback,Win.GetModuleHandle(null),0);hook=Win.SetWinEventHook(0x000A,0x000B,IntPtr.Zero,callback,0,0,2);timer.Interval=35;timer.Tick+=delegate{Poll();};if(!Installed)engine.Error="Shift-drag could not start. Reopen PaneLock to try again.";}
+ IntPtr OnMouse(int code,IntPtr message,IntPtr data){if(code>=0&&message.ToInt32()==0x201){try{var p=(Win.Point)System.Runtime.InteropServices.Marshal.PtrToStructure(data,typeof(Win.Point));pressedWindow=Win.GetAncestor(Win.WindowFromPoint(p),2);IntPtr result;long packed=((long)(ushort)p.Y<<16)|(ushort)p.X;Win.SendMessageTimeout(pressedWindow,0x84,IntPtr.Zero,new IntPtr(packed),2,50,out result);LastHit=result.ToInt32();captionPressed=LastHit==2;pressedAt=DateTime.UtcNow;releasedAt=DateTime.MinValue;}catch{captionPressed=false;}}else if(code>=0&&message.ToInt32()==0x202){releasedWindow=pressedWindow;releasedShift=ShiftDown();releasedPoint=(Win.Point)System.Runtime.InteropServices.Marshal.PtrToStructure(data,typeof(Win.Point));releasedAt=DateTime.UtcNow;}return Win.CallNextHookEx(mouseHook,code,message,data);}
+ void OnEvent(IntPtr unused,uint kind,IntPtr h,int obj,int child,uint thread,uint time){if(disposed)return;Events++;try{if(kind==0xA){if(h==pressedWindow&&captionPressed&&DateTime.UtcNow-pressedAt<TimeSpan.FromSeconds(10))Begin(h,false);}else if(kind==0xB&&h==dragged){FinishFromInput();}}catch(Exception ex){engine.Error="Shift-drag was cancelled: "+ex.Message;Cancel();}}
+ void FinishFromInput(){if(releasedWindow==dragged&&DateTime.UtcNow-releasedAt<TimeSpan.FromSeconds(1))End(releasedShift,new Point(releasedPoint.X,releasedPoint.Y));else{Win.Point p;Win.GetCursorPos(out p);End(ShiftDown(),new Point(p.X,p.Y));}}
+ public bool Begin(IntPtr window,bool testAllowSelf){if(engine.Paused||!Win.IsAssignable(window,testAllowSelf&&Program.TestMode))return false;Cancel();Starts++;dragged=window;allowSelf=testAllowSelf&&Program.TestMode;engine.DraggingWindow=window;began=DateTime.UtcNow;if(!(Program.TestMode&&ManualTests))timer.Start();return true;}
+ void Poll(){if(dragged==IntPtr.Zero)return;Win.Point p;Win.GetCursorPos(out p);bool left=(Win.GetAsyncKeyState(1)&0x8000)!=0;if(!left&&DateTime.UtcNow-began>TimeSpan.FromMilliseconds(100)){FinishFromInput();return;}Update(ShiftDown(),new Point(p.X,p.Y));}
+ public void Update(bool shift,Point point){if(dragged==IntPtr.Zero||!shift||engine.Paused){overlay.Hide();return;}var m=MonitorAt(point);if(m==null){overlay.Hide();return;}overlay.Display(engine,m,PaneAt(m,point));}
+ MonitorInfo MonitorAt(Point point){return engine.Monitors.FirstOrDefault(m=>m.Bounds.Contains(point));}
+ int PaneAt(MonitorInfo monitor,Point point){var l=engine.LayoutFor(monitor);var area=l.WorkArea?monitor.Work:monitor.Bounds;for(int i=0;i<l.Count;i++)if(point.X<l.Zone(area,i).Right)return i;return l.Count-1;}
+ public bool End(bool shift,Point point){IntPtr h=dragged;bool test=allowSelf;Cancel();var monitor=MonitorAt(point);bool assigned=false;if(h!=IntPtr.Zero&&shift&&!engine.Paused&&monitor!=null)assigned=engine.Assign(h,PaneAt(monitor,point),monitor.Id,test);if(assigned)Drops++;engine.Tick();return assigned;}
+ public void Cancel(){timer.Stop();overlay.Hide();dragged=IntPtr.Zero;engine.DraggingWindow=IntPtr.Zero;allowSelf=false;}
+ public void Dispose(){if(disposed)return;disposed=true;Cancel();if(mouseHook!=IntPtr.Zero){Win.UnhookWindowsHookEx(mouseHook);mouseHook=IntPtr.Zero;}if(hook!=IntPtr.Zero){Win.UnhookWinEvent(hook);hook=IntPtr.Zero;}timer.Dispose();overlay.Dispose();}
+}

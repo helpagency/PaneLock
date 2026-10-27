@@ -1,0 +1,37 @@
+const {chromium}=require('playwright');
+const fs=require('fs'),path=require('path');
+(async()=>{
+ const root=path.resolve(__dirname,'../YouTubeCompanion');
+ const browser=await chromium.launch({headless:true, ...(process.env.PANELOCK_BROWSER_CHANNEL ? {channel:process.env.PANELOCK_BROWSER_CHANNEL} : {})});
+ const page=await browser.newPage({viewport:{width:640,height:900}});
+ const source=fs.readFileSync(path.join(root,'window-fullscreen.js'),'utf8');
+ const css=fs.readFileSync(path.join(root,'window-fullscreen.css'),'utf8');
+ await page.addInitScript({content:source});
+ await page.route('https://www.youtube.com/**',route=>route.fulfill({contentType:'text/html',body:`<style>body{margin:0}#wrapper{transform:translateX(10px);overflow:hidden;width:300px;height:200px}.html5-video-player{width:300px;height:170px}</style><div id="wrapper"><div id="movie_player" class="html5-video-player"><div class="html5-video-container"><video></video></div><button id="enter">Fullscreen</button><button id="nativeButton" class="ytp-fullscreen-button">Native fullscreen</button></div></div><script>enter.onclick=()=>movie_player.requestFullscreen();</script>`}));
+ await page.goto('https://www.youtube.com/watch?v=panelock-test');await page.addStyleTag({content:css});
+ const checks=[];function check(ok,name){checks.push({pass:!!ok,name});if(!ok)throw Error(name);}
+ await page.evaluate(()=>{window.rawFull=Object.getOwnPropertyDescriptor(Document.prototype,'fullscreenElement').get;});
+ await page.click('#enter');
+ check(await page.evaluate(()=>document.title.includes(' [PaneLock video]')),'Fullscreen publishes native toolbar-hide signal');
+ await page.evaluate(()=>document.title='Updated video title');await page.waitForTimeout(30);check(await page.evaluate(()=>document.title==='Updated video title [PaneLock video]'),'Signal survives YouTube title changes');
+ let state=await page.evaluate(()=>({element:document.fullscreenElement?.id,native:Object.getOwnPropertyDescriptor(Document.prototype,'fullscreenElement').get.toString(),rect:(()=>{let r=movie_player.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};})(),width:innerWidth,height:innerHeight}));
+ check(state.element==='movie_player','Fullscreen state exposed to YouTube');
+ check(state.rect.x===0&&state.rect.y===0&&state.rect.width===640&&state.rect.height===900,'Player fills pane viewport, including transformed ancestors');
+ await page.evaluate(()=>document.exitFullscreen());
+ await page.evaluate(()=>document.querySelector('video').requestFullscreen());
+ check(await page.evaluate(()=>document.fullscreenElement.id==='movie_player'),'Video-leaf fullscreen targets the containing player');
+ await page.evaluate(()=>document.exitFullscreen());
+ await page.evaluate(()=>{window.nativeHits=0;document.querySelector('#nativeButton').onclick=()=>{window.nativeHits++;};});
+ await page.click('#nativeButton');
+ check(await page.evaluate(()=>window.nativeHits===0&&document.fullscreenElement.id==='movie_player'),'Actual fullscreen button is intercepted before page handlers');
+ await page.keyboard.press('Escape');await page.keyboard.press('f');
+ check(await page.evaluate(()=>document.fullscreenElement.id==='movie_player'),'YouTube F shortcut enters pane fullscreen');
+ await page.setViewportSize({width:800,height:700});
+ check(await page.evaluate(()=>movie_player.getBoundingClientRect().width===800),'Player follows pane resize');
+ await page.keyboard.press('Escape');check(await page.evaluate(()=>document.fullscreenElement===null&&!document.querySelector('[data-panelock-player]')),'Escape restores normal player');check(await page.evaluate(()=>!document.title.includes(' [PaneLock video]')),'Escape clears native toolbar-hide signal');
+ await page.click('#enter');await page.evaluate(()=>document.exitFullscreen());check(await page.evaluate(()=>document.fullscreenElement===null),'Player exit button API restores normal state');
+ await page.click('#enter');await page.evaluate(()=>document.dispatchEvent(new Event('yt-navigate-start')));check(await page.evaluate(()=>document.fullscreenElement===null),'YouTube navigation exits pane fullscreen');
+ await page.click('#enter');await page.evaluate(()=>movie_player.remove());await page.waitForTimeout(30);check(await page.evaluate(()=>document.fullscreenElement===null&&!document.documentElement.hasAttribute('data-panelock-active')),'Removed player cleans up fullscreen state');
+ const reports=path.resolve(__dirname,'../test-results');fs.mkdirSync(reports,{recursive:true});fs.writeFileSync(path.join(reports,'companion.json'),JSON.stringify({checks,scope:'Chromium synthetic player tests. Actual YouTube player integration not verified.'},null,2));
+ console.log(JSON.stringify(checks));await browser.close();
+})().catch(e=>{console.error(e);process.exit(1)});

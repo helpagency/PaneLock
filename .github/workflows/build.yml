@@ -1,0 +1,34 @@
+name: Windows build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Windows app and installer
+        shell: pwsh
+        run: ./src/Build.ps1
+      - name: Run self-tests
+        shell: pwsh
+        run: |
+          $scratch = Join-Path $env:RUNNER_TEMP 'PaneLock-tests'
+          $process = Start-Process ./PaneLock.exe -ArgumentList @('--self-test', '--test-root', $scratch) -Wait -PassThru
+          Get-Content (Join-Path $scratch 'reports/unit-tests.txt')
+          if ($process.ExitCode -ne 0) { throw 'Self-tests failed' }
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaneLock-windows-x64
+          path: |
+            PaneLock.exe
+            PaneLock.exe.config
+            PaneLock-Setup.exe
+            YouTubeCompanion/
+            LICENSE
+            README.md

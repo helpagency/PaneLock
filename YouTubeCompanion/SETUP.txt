@@ -1,0 +1,14 @@
+PaneLock YouTube companion 0.3.1
+
+Use with PaneLock 0.6.1 or later. See the main README for installation and troubleshooting.
+
+In chrome://extensions, enable Developer mode, click Load unpacked, and select
+this folder containing manifest.json. Remove duplicate older copies. Reload
+existing YouTube tabs after installing or updating.
+
+Assign the Chrome window containing YouTube to a pane. Clicking the player
+fullscreen button hides Chrome's controls and fills the pane. Escape restores
+the page and controls. Existing manual F11 pane mode is preserved on video exit.
+
+The companion is MIT-licensed with PaneLock. It works on www.youtube.com and
+m.youtube.com; it does not cover players embedded on other sites.

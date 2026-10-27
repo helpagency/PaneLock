@@ -1,0 +1,45 @@
+/* Use viewport dimensions, never physical screen dimensions. */
+html[data-panelock-active], html[data-panelock-active] body {
+  overflow: hidden !important;
+}
+[data-panelock-ancestor] {
+  transform: none !important;
+  translate: none !important;
+  rotate: none !important;
+  scale: none !important;
+  filter: none !important;
+  backdrop-filter: none !important;
+  perspective: none !important;
+  contain: none !important;
+  content-visibility: visible !important;
+  will-change: auto !important;
+  overflow: visible !important;
+  clip-path: none !important;
+  isolation: auto !important;
+  z-index: auto !important;
+}
+[data-panelock-player] {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  z-index: 2147483647 !important;
+  background: #000 !important;
+}
+[data-panelock-player] .html5-video-container {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+[data-panelock-player] video {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+}
