@@ -1,10 +1,12 @@
 # PaneLock
 
+![PaneLock by Help.Agency](panelock-social-preview.png)
+
 **Make better use of an ultrawide monitor, a multi-monitor desk, or a CORSAIR XENEON EDGE.**
 
 PaneLock is a Windows 11 window manager that divides each display into custom panes and keeps assigned apps in place. Its Chrome companion makes YouTube's fullscreen button fill an assigned pane and hide the browser controls, so a video can sit alongside chat, notes, or another app.
 
-[Download the latest release](https://github.com/carlosnewideaweb/PaneLock/releases/latest) · [Report a bug](https://github.com/carlosnewideaweb/PaneLock/issues) · [MIT License](LICENSE)
+[Download the latest release](https://github.com/helpagency/PaneLock/releases/latest) · [Report a bug](https://github.com/helpagency/PaneLock/issues) · [MIT License](LICENSE)
 
 ## Built for wide workspaces
 
@@ -36,7 +38,7 @@ An example on a 5120-pixel-wide display:
 
 Requires **Windows 11 x64** and **.NET Framework 4.8**. Google Chrome is required for the YouTube companion.
 
-1. Download `PaneLock-Setup.exe` from [Releases](https://github.com/carlosnewideaweb/PaneLock/releases/latest).
+1. Download `PaneLock-Setup.exe` from [Releases](https://github.com/helpagency/PaneLock/releases/latest).
 2. If upgrading, choose **Exit** from the old PaneLock tray menu first.
 3. Run the installer, then open PaneLock from the Start menu. It installs for your account without administrator access.
 4. Alternatively, extract the portable ZIP and run `PaneLock.exe`. Keep `PaneLock.exe.config` beside it.
